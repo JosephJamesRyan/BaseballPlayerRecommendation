@@ -1,0 +1,113 @@
+---
+title: "BaseballPlayerRecommendations"
+author: "Joseph Ryan"
+date: "24/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+# Reading the 2 dataframes used in this project in
+batting <- read.csv('/Users/josephryan/Desktop/R projects/Moneyball/Batting copy.csv')
+
+salary <- read.csv('/Users/josephryan/Desktop/R projects/Moneyball/Salaries copy.csv')
+```
+
+```{r, eval= FALSE}
+# Getting some further insights into the dataset we are going to be working with
+head(batting)
+str(batting)
+summary(batting)
+```
+```{r}
+# Looking into some of the variables of interest within the batting dataframe
+
+## At bats:
+head(batting$AB)
+
+## Doubles - hits on which the batter reached second base successfully:
+head(batting$X2B)
+```
+```{r}
+# Next we want to add 3 further statistics into the dataframe that are all a product of existing features (the formulas to these were all found via wikipedia)
+
+## Adding 'batting average' to the dataframe
+batting$BA <- batting$H / batting$AB
+
+## Adding 'on base percentage' to the dataframe
+batting$OBP <- (batting$H + batting$BB + batting$HBP)/(batting$AB + batting$BB + batting$HBP + batting$SF)
+
+## Adding slugging average
+### To do this, first we must get (X2B) singles - hits one which the batter reached second base successfully
+batting$X1B <- batting$H - batting$X2B - batting$X3B - batting$HR
+
+### Now to add slugging average
+batting$SLG <- ((1 * batting$X1B) + (2 * batting$X2B) + (3 * batting$X3B) + (4 * batting$HR) ) / batting$AB
+```
+
+```{r, eval = FALSE}
+# Ensuring that the changes we have made look correct
+str(batting)
+summary(batting)
+```
+```{r, eval = FALSE}
+# It is suggested that data before the year 1985 in incomplete; furthermore, the players before 1985 are most likely to be retired now. For these reasons data before 1985 may be problematic and should therefore be disregarded.
+
+batting <- subset(batting,yearID >= 1985)
+summary(batting)
+```
+```{r, eval= FALSE}
+# Merging the improved batting dataframe with the salary dataframe
+
+combined_df <- merge(batting,salary,by=c('playerID','yearID'))
+str(combined_df)
+summary(combined_df)
+```
+```{r}
+# It was mentioned within the project brief that Oakland A's (team of interest) lost 3 key players (we were giving payer IDs) who we are ultimately trying to replace
+
+# Finding data about these 3 lost players
+
+lost_key_players <- subset(combined_df,playerID %in% c('giambja01','damonjo01','saenzol01') )
+head(lost_key_players,10)
+```
+```{r}
+# Looking into the information about these players, we can see that all 3 of them were lost after the 2001 seaon; because of this we can further narrow down the dataframe of interest based on the year
+
+lost_key_players <- subset(lost_key_players,yearID == 2001)
+```
+```{r}
+# We can condense the dataframe futher by looking at only the variables that we are interested in
+
+lost_key_players <- lost_key_players[,c('playerID','H','X2B','X3B','HR','OBP','SLG','BA','AB')]
+head(lost_key_players,10)
+```
+```{r}
+# Searching fpr possible players on interest
+available_players <- filter(combined_df, yearID==2001)
+```
+```{r}
+## Plotting the data in order to visualise and get a better understanding 
+ggplot(available_players,aes(x=OBP,y=salary)) + geom_point()
+```
+```{r}
+# Filtering to find players who suit our criteria 
+available_players <- filter(available_players,salary<8000000,OBP>0)
+available_players <- filter(available_players,AB >= 500)
+
+possible <- head(arrange(available_players,desc(OBP)),10)
+```
+```{r}
+# Getting only the columns we're interested in
+possible <- possible[,c('playerID','OBP','AB','salary')]
+possible
+```
+```{r}
+## giambja01 is one of the players we are trying to replace, so disregard him. We want 3 players so go for the next 3
+possible[2:4, ]
+```
